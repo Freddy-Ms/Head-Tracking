@@ -7,11 +7,8 @@ from scipy.spatial.distance import euclidean
 
 # Konfiguracja dla Mediapipe
 mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(min_detection_confidence=0.5)
+face_mesh = mp_face_mesh.FaceMesh(min_detection_confidence=0.5, max_num_faces = 5)
 
-# Funkcja obliczająca odległość euklidesową
-def euclidean_distance(point1, point2):
-    return math.sqrt((point2[0] - point1[0])**2 + (point2[1] - point1[1])**2)
 
 # Inicjalizacja filtru Kalmana
 def create_kalman_filter():
@@ -48,11 +45,12 @@ while cap.isOpened():
 
     # Wykrywanie twarzy za pomocą Mediapipe
     results = face_mesh.process(rgb_frame)
-
     if results.multi_face_landmarks:
-        for face_landmarks in results.multi_face_landmarks:
+        if len(results.multi_face_landmarks) > 1:
+            cv2.putText(frame, "Max 1 osoba na ekranie!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        else:
             h, w, _ = frame.shape
-
+            face_landmarks = results.multi_face_landmarks[0]
             # Landmarki dla kluczowych punktów
             nose_landmark = face_landmarks.landmark[1]
             left_eye_landmark = face_landmarks.landmark[33]
@@ -76,7 +74,7 @@ while cap.isOpened():
             face_height = euclidean(chin, forehead)
             face_width = euclidean(left_cheek, right_cheek)
 
-            # Uśrednianie pomiaru
+            # Wybieranie pomiaru
             dominant_distance = max(eye_distance, face_height, face_width)
             avg_face_size = dominant_distance
 
@@ -100,7 +98,7 @@ while cap.isOpened():
             # Wyświetlanie pozycji
             current_time = time.time()
             if current_time - last_print_time >= 0.5:
-                print(f"Estymacja: x={nose[0]:.2f}, y={nose[1]:.2f}, z={prediction[2][0]:.2f}")
+                print(f"Estymacja: x={nose[0]:.2f}, y={h-nose[1]:.2f}, z={prediction[2][0]:.2f}")
                 last_print_time = current_time
 
     # Wyświetlanie obrazu
